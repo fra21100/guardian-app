@@ -13,7 +13,7 @@ def load_model():
 model, X_test, y_test = load_model()
 
 st.title("Guardian - Sicurezza Digitale")
-st.write("Rileva frodi, minacce dark web e URL sospetti con AI")
+st.write("Rileva frodi, IP sospetti e dispositivi vulnerabili con AI")
 
 score = model.score(X_test, y_test)
 st.write(f"Accuratezza: {score*100:.2f}%")
@@ -30,32 +30,53 @@ if st.button("Analizza Transazione"):
     else:
         st.success("Tutto ok, nessuna frode.")
 
-# VirusTotal URL Scan
-st.subheader("Analizza URL Sospetto")
-url = st.text_input("Inserisci URL (es. http://example.com)")
-if st.button("Scansiona URL"):
-    api_key = "8fbd2689c9bdaf2f8ebe8064947bb3ddf33095d126dd86bf153e3506ac77f3ab"  # Sostituisci con la tua chiave
-    vt_url = "https://www.virustotal.com/api/v3/urls"
-    headers = {"x-apikey": api_key}
-    # Codifica l'URL per l'analisi
-    payload = {"url": url}
-    response = requests.post(vt_url, headers=headers, data=payload)
+# Shodan API
+st.subheader("Cerca Dispositivi con Shodan")
+ip_shodan = st.text_input("Inserisci IP per Shodan (es. 8.8.8.8)")
+if st.button("Cerca con Shodan"):
+    api_key = "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr"  # Sostituisci con la tua chiave Shodan
+    url = f"https://api.shodan.io/shodan/host/{ip_shodan}?key={api_key}"
+    response = requests.get(url)
     if response.status_code == 200:
-        scan_id = response.json()['data']['id']
-        # Recupera i risultati
-        analysis_url = f"https://www.virustotal.com/api/v3/analyses/{scan_id}"
-        analysis_response = requests.get(analysis_url, headers=headers)
-        if analysis_response.status_code == 200:
-            result = analysis_response.json()['data']['attributes']['stats']
-            st.write(f"Risultati scansione: Malicious: {result['malicious']}, Suspicious: {result['suspicious']}, Clean: {result['harmless']}")
-            if result['malicious'] > 0 or result['suspicious'] > 0:
-                st.error("ATTENZIONE: URL potenzialmente pericoloso!")
-            else:
-                st.success("URL sicuro.")
-        else:
-            st.error("Errore nell'analisi dei risultati.")
+        data = response.json()
+        st.write(f"Porte aperte: {data.get('ports', 'Nessuna')}")
+        st.write(f"Dettagli: {data.get('data', 'N/A')}")
     else:
-        st.error(f"Errore nella richiesta: {response.status_code}")
+        st.error(f"Errore nella ricerca: {response.status_code}")
+
+# IPinfo API
+st.subheader("Geolocalizza IP")
+ip_info = st.text_input("Inserisci IP per IPinfo (es. 8.8.8.8)")
+if st.button("Geolocalizza"):
+    api_key = "e836ce33f43f8a"  # Sostituisci con la tua chiave IPinfo
+    url = f"https://ipinfo.io/{ip_info}/json?token={api_key}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        st.write(f"Posizione: {data.get('city', 'N/A')}, {data.get('country', 'N/A')}")
+        st.write(f"ISP: {data.get('org', 'N/A')}")
+    else:
+        st.error(f"Errore nella geolocalizzazione: {response.status_code}")
+
+# AbuseIPDB API
+st.subheader("Controlla IP su AbuseIPDB")
+ip_abuse = st.text_input("Inserisci IP per AbuseIPDB (es. 8.8.8.8)")
+if st.button("Controlla IP"):
+    api_key = "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726"  # Sostituisci con la tua chiave AbuseIPDB
+    url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip_abuse}"
+    headers = {"Key": api_key, "Accept": "application/json"}
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        data = response.json()['data']
+        st.write(f"Segnalazioni: {data['totalReports']}")
+        if data['isWhitelisted']:
+            st.success("IP sicuro.")
+        elif data['totalReports'] > 0:
+            st.error("IP segnalato come pericoloso!")
+        else:
+            st.success("Nessuna segnalazione.")
+    else:
+        st.error(f"Errore nella verifica: {response.status_code}")
 
 # Grafico
 st.subheader("Grafico Frodi")
