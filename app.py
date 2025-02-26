@@ -5,10 +5,10 @@ from sklearn.model_selection import train_test_split
 import smtplib
 import plotly.express as px
 
-# Cache del modello per velocità
 @st.cache_resource
 def train_model():
     data = pd.read_csv('https://drive.google.com/uc?export=download&id=17KecvEIHHc5QfUhQkC9NJv9A9Y1a-K-A')
+    st.write("Colonne nel dataset:", data.columns.tolist())  # Stampa le colonne
     X = data.drop('Class', axis=1)
     y = data['Class']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
@@ -17,6 +17,7 @@ def train_model():
     return model, X_test, y_test
 
 model, X_test, y_test = train_model()
+# ... resto del codice invariato ...
 
 # Dashboard
 st.title("Guardian - Sicurezza Digitale")
