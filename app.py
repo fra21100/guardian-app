@@ -9,13 +9,12 @@ import os
 # Carica il modello pre-addestrato
 @st.cache_resource
 def load_model():
+    if not os.path.exists('model.pkl'):
+        st.error("Errore: model.pkl non trovato nel repository!")
+        st.stop()
     with open('model.pkl', 'rb') as f:
         model, X_test, y_test = pickle.load(f)
     return model, X_test, y_test
-
-# Dataset solo per debug colonne (opzionale)
-data = pd.read_csv('https://github.com/tuo-username/guardian-app/releases/download/v1.0/creditcard.csv', nrows=100)
-st.write("Colonne nel dataset:", data.columns.tolist())
 
 model, X_test, y_test = load_model()
 
