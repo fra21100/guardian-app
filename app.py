@@ -13,7 +13,7 @@ def load_model():
 model, X_test, y_test = load_model()
 
 st.title("Guardian - Sicurezza Digitale")
-st.write("Rileva frodi, IP sospetti e dispositivi vulnerabili con AI")
+st.write("Rileva frodi e analizza IP con AI avanzata")
 
 score = model.score(X_test, y_test)
 st.write(f"Accuratezza: {score*100:.2f}%")
@@ -30,53 +30,47 @@ if st.button("Analizza Transazione"):
     else:
         st.success("Tutto ok, nessuna frode.")
 
-# Shodan API
-st.subheader("Cerca Dispositivi con Shodan")
-ip_shodan = st.text_input("Inserisci IP per Shodan (es. 8.8.8.8)")
-if st.button("Cerca con Shodan"):
-    api_key = "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr"  # Sostituisci con la tua chiave Shodan
-    url = f"https://api.shodan.io/shodan/host/{ip_shodan}?key={api_key}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        st.write(f"Porte aperte: {data.get('ports', 'Nessuna')}")
-        st.write(f"Dettagli: {data.get('data', 'N/A')}")
+# Unificato IP Check
+st.subheader("Analizza IP")
+ip = st.text_input("Inserisci IP (es. 8.8.8.8)")
+if st.button("Analizza IP"):
+    # Shodan
+    shodan_key = "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr"  # Sostituisci
+    shodan_url = f"https://api.shodan.io/shodan/host/{ip}?key={shodan_key}"
+    shodan_response = requests.get(shodan_url)
+    if shodan_response.status_code == 200:
+        shodan_data = shodan_response.json()
+        st.write(f"Shodan - Porte aperte: {shodan_data.get('ports', 'Nessuna')}")
     else:
-        st.error(f"Errore nella ricerca: {response.status_code}")
+        st.write("Shodan - Errore nella ricerca.")
 
-# IPinfo API
-st.subheader("Geolocalizza IP")
-ip_info = st.text_input("Inserisci IP per IPinfo (es. 8.8.8.8)")
-if st.button("Geolocalizza"):
-    api_key = "e836ce33f43f8a"  # Sostituisci con la tua chiave IPinfo
-    url = f"https://ipinfo.io/{ip_info}/json?token={api_key}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        st.write(f"Posizione: {data.get('city', 'N/A')}, {data.get('country', 'N/A')}")
-        st.write(f"ISP: {data.get('org', 'N/A')}")
+    # IPinfo
+    ipinfo_key = "e836ce33f43f8a"  # Sostituisci
+    ipinfo_url = f"https://ipinfo.io/{ip}/json?token={ipinfo_key}"
+    ipinfo_response = requests.get(ipinfo_url)
+    if ipinfo_response.status_code == 200:
+        ipinfo_data = ipinfo_response.json()
+        st.write(f"IPinfo - Posizione: {ipinfo_data.get('city', 'N/A')}, {ipinfo_data.get('country', 'N/A')}")
+        st.write(f"IPinfo - ISP: {ipinfo_data.get('org', 'N/A')}")
     else:
-        st.error(f"Errore nella geolocalizzazione: {response.status_code}")
+        st.write("IPinfo - Errore nella geolocalizzazione.")
 
-# AbuseIPDB API
-st.subheader("Controlla IP su AbuseIPDB")
-ip_abuse = st.text_input("Inserisci IP per AbuseIPDB (es. 8.8.8.8)")
-if st.button("Controlla IP"):
-    api_key = "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726"  # Sostituisci con la tua chiave AbuseIPDB
-    url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip_abuse}"
-    headers = {"Key": api_key, "Accept": "application/json"}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        data = response.json()['data']
-        st.write(f"Segnalazioni: {data['totalReports']}")
-        if data['isWhitelisted']:
-            st.success("IP sicuro.")
-        elif data['totalReports'] > 0:
-            st.error("IP segnalato come pericoloso!")
+    # AbuseIPDB
+    abuseipdb_key = "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726"  # Sostituisci
+    abuseipdb_url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip}"
+    abuseipdb_headers = {"Key": abuseipdb_key, "Accept": "application/json"}
+    abuseipdb_response = requests.get(abuseipdb_url, headers=abuseipdb_headers)
+    if abuseipdb_response.status_code == 200:
+        abuseipdb_data = abuseipdb_response.json()['data']
+        st.write(f"AbuseIPDB - Segnalazioni: {abuseipdb_data['totalReports']}")
+        if abuseipdb_data['isWhitelisted']:
+            st.success("AbuseIPDB - IP sicuro.")
+        elif abuseipdb_data['totalReports'] > 0:
+            st.error("AbuseIPDB - IP segnalato come pericoloso!")
         else:
-            st.success("Nessuna segnalazione.")
+            st.success("AbuseIPDB - Nessuna segnalazione.")
     else:
-        st.error(f"Errore nella verifica: {response.status_code}")
+        st.write("AbuseIPDB - Errore nella verifica.")
 
 # Grafico
 st.subheader("Grafico Frodi")
