@@ -34,7 +34,7 @@ if st.button("Analizza Transazione"):
 st.subheader("Analizza URL Sospetto")
 url = st.text_input("Inserisci URL (es. http://example.com)")
 if st.button("Scansiona URL"):
-    api_key = "1234abcd5678efgh9012ijkl3456mnop"  # Sostituisci con la tua chiave
+    api_key = "8fbd2689c9bdaf2f8ebe8064947bb3ddf33095d126dd86bf153e3506ac77f3ab"  # Sostituisci con la tua chiave
     vt_url = "https://www.virustotal.com/api/v3/urls"
     headers = {"x-apikey": api_key}
     # Codifica l'URL per l'analisi
