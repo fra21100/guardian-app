@@ -10,10 +10,9 @@ import os
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-# Funzione per scaricare il file da Dropbox
 def download_file(url, dest):
     r = requests.get(url, stream=True)
-    r.raise_for_status()  # Solleva un errore se il download fallisce
+    r.raise_for_status()
     with open(dest, 'wb') as f:
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
@@ -21,12 +20,10 @@ def download_file(url, dest):
 
 @st.cache_resource
 def initialize_guardian():
-    # Percorso locale del file
     dataset_path = 'creditcard.csv'
-    # URL Dropbox con il tuo link
-    dropbox_url = 'https://dl.dropboxusercontent.com/scl/fi/lqe48d88uz76s3y30xfsx/creditcard.csv'
+    # Link Dropbox corretto
+    dropbox_url = 'https://www.dropbox.com/scl/fi/lqe48d88uz76s3y30xfsx/creditcard.csv?dl=1'
     
-    # Scarica il file se non esiste
     if not os.path.exists(dataset_path):
         st.write("Scaricamento del dataset da Dropbox in corso...")
         try:
@@ -36,7 +33,6 @@ def initialize_guardian():
             st.error(f"Errore nel download: {str(e)}")
             raise
     
-    # Carica il dataset
     df_real = pd.read_csv(dataset_path)
     X = df_real.drop(columns=['Time', 'Class'])
     y = df_real['Class']
@@ -50,7 +46,7 @@ def initialize_guardian():
         model.fit(X_test.iloc[:1000], y_test.iloc[:1000])
     return model, X_test, y_test, df_real
 
-# Inizializzazione
+# Resto del codice invariato
 model, X_test, y_test, df_real = initialize_guardian()
 conn = sqlite3.connect('guardian_data.db', check_same_thread=False)
 c = conn.cursor()
@@ -60,7 +56,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS transazioni
               v16 REAL, v17 REAL, v18 REAL, v19 REAL, v20 REAL, v21 REAL, v22 REAL, 
               v23 REAL, v24 REAL, v25 REAL, v26 REAL, v27 REAL, v28 REAL, amount REAL, fraud_class INTEGER, ip TEXT)''')
 
-# Monitoraggio continuo
 def monitor_transactions(model, conn, df_real):
     idx = 0
     while True:
@@ -80,7 +75,6 @@ def monitor_transactions(model, conn, df_real):
 
 Thread(target=monitor_transactions, args=(model, conn, df_real), daemon=True).start()
 
-# Interfaccia Streamlit
 st.title("GUARDIAN - L’Agente Digitale H24")
 st.write("Un guardiano autonomo che protegge la tua banca, sempre.")
 st.write(f"Accuratezza attuale: {model.score(X_test, y_test)*100:.2f}%")
