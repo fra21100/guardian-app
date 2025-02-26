@@ -10,14 +10,36 @@ import os
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-# Carica dataset reale e modello
+# Funzione per scaricare il file da Dropbox
+def download_file(url, dest):
+    r = requests.get(url, stream=True)
+    r.raise_for_status()  # Solleva un errore se il download fallisce
+    with open(dest, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=8192):
+            if chunk:
+                f.write(chunk)
+
 @st.cache_resource
 def initialize_guardian():
-    # Carica dataset reale
-    df_real = pd.read_csv('creditcard.csv')
+    # Percorso locale del file
+    dataset_path = 'creditcard.csv'
+    # URL Dropbox con il tuo link
+    dropbox_url = 'https://dl.dropboxusercontent.com/scl/fi/lqe48d88uz76s3y30xfsx/creditcard.csv'
+    
+    # Scarica il file se non esiste
+    if not os.path.exists(dataset_path):
+        st.write("Scaricamento del dataset da Dropbox in corso...")
+        try:
+            download_file(dropbox_url, dataset_path)
+            st.write("Download completato!")
+        except Exception as e:
+            st.error(f"Errore nel download: {str(e)}")
+            raise
+    
+    # Carica il dataset
+    df_real = pd.read_csv(dataset_path)
     X = df_real.drop(columns=['Time', 'Class'])
     y = df_real['Class']
-    # Dividi in train/test (per demo usiamo tutto come test)
     X_test = X
     y_test = y
     try:
@@ -25,51 +47,8 @@ def initialize_guardian():
             model = pickle.load(f)
     except:
         model = RandomForestClassifier()
-        model.fit(X_test.iloc[:1000], y_test.iloc[:1000])  # Allena su un subset
+        model.fit(X_test.iloc[:1000], y_test.iloc[:1000])
     return model, X_test, y_test, df_real
-
-# API keys
-SHODAN_KEY = os.getenv("SHODAN_KEY", "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr")
-ABUSEIPDB_KEY = os.getenv("ABUSEIPDB_KEY", "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726")
-
-def check_shodan(ip):
-    try:
-        url = f"https://api.shodan.io/shodan/host/{ip}?key={SHODAN_KEY}"
-        response = requests.get(url, timeout=5)
-        return response.json() if response.status_code == 200 else None
-    except:
-        return None
-
-def check_dark_web(email):
-    try:
-        url = f"https://haveibeenpwned.com/api/v3/breachedaccount/{email}"
-        headers = {"user-agent": "Guardian-Agent"}
-        response = requests.get(url, headers=headers, timeout=5)
-        return response.json() if response.status_code == 200 else None
-    except:
-        return None
-
-# Monitoraggio con dataset reale
-def monitor_transactions(model, conn, df_real):
-    idx = 0
-    while True:
-        # Prendi una transazione reale
-        transazione = df_real.iloc[idx % len(df_real)][['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 
-                                                        'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 
-                                                        'V20', 'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 
-                                                        'Amount']].tolist()
-        ip = f"192.168.{np.random.randint(1, 255)}.{np.random.randint(1, 255)}"
-        previsione = model.predict([transazione[:-1]])[0]
-        
-        c = conn.cursor()
-        c.execute("INSERT INTO transazioni VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                  transazione + [previsione, ip])
-        conn.commit()
-        
-        if previsione == 1:
-            model.fit([transazione[:-1]], [previsione])
-        time.sleep(1)  # Più veloce per demo
-        idx += 1
 
 # Inizializzazione
 model, X_test, y_test, df_real = initialize_guardian()
@@ -81,8 +60,25 @@ c.execute('''CREATE TABLE IF NOT EXISTS transazioni
               v16 REAL, v17 REAL, v18 REAL, v19 REAL, v20 REAL, v21 REAL, v22 REAL, 
               v23 REAL, v24 REAL, v25 REAL, v26 REAL, v27 REAL, v28 REAL, amount REAL, fraud_class INTEGER, ip TEXT)''')
 
-monitor_thread = Thread(target=monitor_transactions, args=(model, conn, df_real), daemon=True)
-monitor_thread.start()
+# Monitoraggio continuo
+def monitor_transactions(model, conn, df_real):
+    idx = 0
+    while True:
+        transazione = df_real.iloc[idx % len(df_real)][['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 
+                                                        'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 
+                                                        'V20', 'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 
+                                                        'Amount']].tolist()
+        ip = f"192.168.{np.random.randint(1, 255)}.{np.random.randint(1, 255)}"
+        previsione = model.predict([transazione[:-1]])[0]
+        c.execute("INSERT INTO transazioni VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                  transazione + [previsione, ip])
+        conn.commit()
+        if previsione == 1:
+            model.fit([transazione[:-1]], [previsione])
+        time.sleep(1)
+        idx += 1
+
+Thread(target=monitor_transactions, args=(model, conn, df_real), daemon=True).start()
 
 # Interfaccia Streamlit
 st.title("GUARDIAN - L’Agente Digitale H24")
@@ -102,12 +98,6 @@ if st.button("Analizza"):
     conn.commit()
     if previsione == 1:
         st.error("FRODE RILEVATA! Transazione bloccata.")
-        shodan_data = check_shodan(ip_trans)
-        dark_web_data = check_dark_web("test@cliente.com")
-        if shodan_data and shodan_data.get('ports'):
-            st.write(f"Porte sospette: {shodan_data['ports']}")
-        if dark_web_data:
-            st.warning(f"Dark Web alert: compromessa in {len(dark_web_data)} violazioni")
     else:
         st.success("Transazione sicura.")
 
