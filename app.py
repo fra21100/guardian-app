@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import pickle
@@ -13,21 +14,21 @@ def load_model():
 # Funzioni API con caching
 @st.cache_data
 def check_shodan(ip):
-    shodan_key = "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr"  # Sostituisci con la tua
+    shodan_key = "TUA_CHIAVE_SHODAN"  # Sostituisci
     url = f"https://api.shodan.io/shodan/host/{ip}?key={shodan_key}"
     response = requests.get(url)
     return response.json() if response.status_code == 200 else None
 
 @st.cache_data
 def check_ipinfo(ip):
-    ipinfo_key = "e836ce33f43f8a"  # Sostituisci con la tua
+    ipinfo_key = "TUA_CHIAVE_IPINFO"  # Sostituisci
     url = f"https://ipinfo.io/{ip}/json?token={ipinfo_key}"
     response = requests.get(url)
     return response.json() if response.status_code == 200 else None
 
 @st.cache_data
 def check_abuseipdb(ip):
-    abuseipdb_key = "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726"  # Sostituisci con la tua
+    abuseipdb_key = "TUA_CHIAVE_ABUSEIPDB"  # Sostituisci
     url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip}"
     headers = {"Key": abuseipdb_key, "Accept": "application/json"}
     response = requests.get(url, headers=headers)
@@ -41,30 +42,36 @@ st.write("Benvenuto in Guardian! Analizza transazioni sospette o verifica la sic
 score = model.score(X_test, y_test)
 st.write(f"Accuratezza: {score*100:.2f}%")
 
-# Input transazione
+# Input transazione con V1-V28
 st.subheader("Inserisci una transazione")
+# Crea colonne per layout (es. 4 per riga)
+cols = st.columns(4)
+inputs = []
+for i in range(1, 29):  # V1-V28
+    col_idx = (i-1) % 4  # Distribuisci su 4 colonne
+    v_input = cols[col_idx].number_input(f"V{i}", value=0.0, step=0.1)
+    inputs.append(v_input)
 amount = st.number_input("Importo (€)", min_value=0.0, value=100.0)
-v1 = st.number_input("V1", value=0.0)
+inputs.append(amount)  # Aggiungi Amount alla lista
+
 if st.button("Analizza Transazione"):
-    nuova_transazione = [[v1] + [0]*(len(X_test.columns)-2) + [amount]]
+    nuova_transazione = [inputs]  # Lista di 29 valori (V1-V28 + Amount)
     previsione = model.predict(nuova_transazione)
     if previsione[0] == 1:
         st.error("ALERT: Frode rilevata!")
     else:
         st.success("Tutto ok, nessuna frode.")
 
-# Unificato IP Check con caching
+# Unificato IP Check
 st.subheader("Analizza IP")
 ip = st.text_input("Inserisci IP (es. 8.8.8.8)")
 if st.button("Analizza IP"):
-    # Shodan
     shodan_data = check_shodan(ip)
     if shodan_data:
         st.write(f"Shodan - Porte aperte: {shodan_data.get('ports', 'Nessuna')}")
     else:
-        st.write("Shodan - Errore nella ricerca o dati non disponibili.")
+        st.write("Shodan - Errore nella ricerca.")
 
-    # IPinfo
     ipinfo_data = check_ipinfo(ip)
     if ipinfo_data:
         st.write(f"IPinfo - Posizione: {ipinfo_data.get('city', 'N/A')}, {ipinfo_data.get('country', 'N/A')}")
@@ -72,7 +79,6 @@ if st.button("Analizza IP"):
     else:
         st.write("IPinfo - Errore nella geolocalizzazione.")
 
-    # AbuseIPDB
     abuseipdb_data = check_abuseipdb(ip)
     if abuseipdb_data:
         st.write(f"AbuseIPDB - Segnalazioni: {abuseipdb_data['totalReports']}")
