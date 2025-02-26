@@ -7,7 +7,7 @@ import plotly.express as px
 
 @st.cache_resource
 def train_model():
-    data = pd.read_csv('https://drive.google.com/uc?export=download&id=17KecvEIHHc5QfUhQkC9NJv9A9Y1a-K-A')
+    data = pd.read_csv('https://www.dropbox.com/scl/fi/lqe48d88uz76s3y30xfsx/creditcard.csv?rlkey=ivk8j9btww7it9oupvlrms2vx&st=l2sh7pz0&dl=1')
     st.write("Colonne nel dataset:", data.columns.tolist())  # Stampa le colonne
     X = data.drop('Class', axis=1)
     y = data['Class']
