@@ -10,24 +10,28 @@ import os
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-# Carica modello
+# Carica dataset reale e modello
 @st.cache_resource
 def initialize_guardian():
+    # Carica dataset reale
+    df_real = pd.read_csv('creditcard.csv')
+    X = df_real.drop(columns=['Time', 'Class'])
+    y = df_real['Class']
+    # Dividi in train/test (per demo usiamo tutto come test)
+    X_test = X
+    y_test = y
     try:
         with open('model.pkl', 'rb') as f:
-            model, X_test, y_test = pickle.load(f)
+            model = pickle.load(f)
     except:
         model = RandomForestClassifier()
-        X_test = np.random.rand(100, 28)
-        y_test = np.random.randint(0, 2, 100)
-    return model, X_test, y_test
+        model.fit(X_test.iloc[:1000], y_test.iloc[:1000])  # Allena su un subset
+    return model, X_test, y_test, df_real
 
-# API keys sicure
+# API keys
 SHODAN_KEY = os.getenv("SHODAN_KEY", "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr")
-IPINFO_KEY = os.getenv("IPINFO_KEY", "e836ce33f43f8a")
 ABUSEIPDB_KEY = os.getenv("ABUSEIPDB_KEY", "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726")
 
-# Funzioni API
 def check_shodan(ip):
     try:
         url = f"https://api.shodan.io/shodan/host/{ip}?key={SHODAN_KEY}"
@@ -45,10 +49,15 @@ def check_dark_web(email):
     except:
         return None
 
-# Simulazione transazioni continue
-def monitor_transactions(model, conn):
+# Monitoraggio con dataset reale
+def monitor_transactions(model, conn, df_real):
+    idx = 0
     while True:
-        transazione = np.random.rand(1, 28).tolist()[0] + [np.random.uniform(1, 10000)]
+        # Prendi una transazione reale
+        transazione = df_real.iloc[idx % len(df_real)][['V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9', 'V10', 
+                                                        'V11', 'V12', 'V13', 'V14', 'V15', 'V16', 'V17', 'V18', 'V19', 
+                                                        'V20', 'V21', 'V22', 'V23', 'V24', 'V25', 'V26', 'V27', 'V28', 
+                                                        'Amount']].tolist()
         ip = f"192.168.{np.random.randint(1, 255)}.{np.random.randint(1, 255)}"
         previsione = model.predict([transazione[:-1]])[0]
         
@@ -59,10 +68,11 @@ def monitor_transactions(model, conn):
         
         if previsione == 1:
             model.fit([transazione[:-1]], [previsione])
-        time.sleep(5)
+        time.sleep(1)  # Più veloce per demo
+        idx += 1
 
 # Inizializzazione
-model, X_test, y_test = initialize_guardian()
+model, X_test, y_test, df_real = initialize_guardian()
 conn = sqlite3.connect('guardian_data.db', check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS transazioni 
@@ -71,8 +81,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS transazioni
               v16 REAL, v17 REAL, v18 REAL, v19 REAL, v20 REAL, v21 REAL, v22 REAL, 
               v23 REAL, v24 REAL, v25 REAL, v26 REAL, v27 REAL, v28 REAL, amount REAL, fraud_class INTEGER, ip TEXT)''')
 
-# Avvia monitoraggio
-monitor_thread = Thread(target=monitor_transactions, args=(model, conn), daemon=True)
+monitor_thread = Thread(target=monitor_transactions, args=(model, conn, df_real), daemon=True)
 monitor_thread.start()
 
 # Interfaccia Streamlit
@@ -80,7 +89,6 @@ st.title("GUARDIAN - L’Agente Digitale H24")
 st.write("Un guardiano autonomo che protegge la tua banca, sempre.")
 st.write(f"Accuratezza attuale: {model.score(X_test, y_test)*100:.2f}%")
 
-# Analisi transazione manuale
 st.subheader("Testa una transazione")
 cols = st.columns(4)
 inputs = [cols[(i-1)%4].number_input(f"V{i}", value=0.0, step=0.1) for i in range(1, 29)]
@@ -103,7 +111,6 @@ if st.button("Analizza"):
     else:
         st.success("Transazione sicura.")
 
-# Dashboard
 st.subheader("Dashboard H24")
 df = pd.read_sql_query("SELECT * FROM transazioni ORDER BY ROWID DESC LIMIT 10", conn)
 st.dataframe(df)
