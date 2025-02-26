@@ -10,11 +10,34 @@ def load_model():
         model, X_test, y_test = pickle.load(f)
     return model, X_test, y_test
 
+# Funzioni API con caching
+@st.cache_data
+def check_shodan(ip):
+    shodan_key = "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr"  # Sostituisci con la tua
+    url = f"https://api.shodan.io/shodan/host/{ip}?key={shodan_key}"
+    response = requests.get(url)
+    return response.json() if response.status_code == 200 else None
+
+@st.cache_data
+def check_ipinfo(ip):
+    ipinfo_key = "e836ce33f43f8a"  # Sostituisci con la tua
+    url = f"https://ipinfo.io/{ip}/json?token={ipinfo_key}"
+    response = requests.get(url)
+    return response.json() if response.status_code == 200 else None
+
+@st.cache_data
+def check_abuseipdb(ip):
+    abuseipdb_key = "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726"  # Sostituisci con la tua
+    url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip}"
+    headers = {"Key": abuseipdb_key, "Accept": "application/json"}
+    response = requests.get(url, headers=headers)
+    return response.json()['data'] if response.status_code == 200 else None
+
+# Main app
 model, X_test, y_test = load_model()
 
 st.title("Guardian - Sicurezza Digitale")
-st.write("Rileva frodi e analizza IP con AI avanzata")
-
+st.write("Benvenuto in Guardian! Analizza transazioni sospette o verifica la sicurezza di un IP.")
 score = model.score(X_test, y_test)
 st.write(f"Accuratezza: {score*100:.2f}%")
 
@@ -30,38 +53,28 @@ if st.button("Analizza Transazione"):
     else:
         st.success("Tutto ok, nessuna frode.")
 
-# Unificato IP Check
+# Unificato IP Check con caching
 st.subheader("Analizza IP")
 ip = st.text_input("Inserisci IP (es. 8.8.8.8)")
 if st.button("Analizza IP"):
     # Shodan
-    shodan_key = "HWr3qeGqlCVxTqbTmuJX3IgKhTJHW6Lr"  # Sostituisci
-    shodan_url = f"https://api.shodan.io/shodan/host/{ip}?key={shodan_key}"
-    shodan_response = requests.get(shodan_url)
-    if shodan_response.status_code == 200:
-        shodan_data = shodan_response.json()
+    shodan_data = check_shodan(ip)
+    if shodan_data:
         st.write(f"Shodan - Porte aperte: {shodan_data.get('ports', 'Nessuna')}")
     else:
-        st.write("Shodan - Errore nella ricerca.")
+        st.write("Shodan - Errore nella ricerca o dati non disponibili.")
 
     # IPinfo
-    ipinfo_key = "e836ce33f43f8a"  # Sostituisci
-    ipinfo_url = f"https://ipinfo.io/{ip}/json?token={ipinfo_key}"
-    ipinfo_response = requests.get(ipinfo_url)
-    if ipinfo_response.status_code == 200:
-        ipinfo_data = ipinfo_response.json()
+    ipinfo_data = check_ipinfo(ip)
+    if ipinfo_data:
         st.write(f"IPinfo - Posizione: {ipinfo_data.get('city', 'N/A')}, {ipinfo_data.get('country', 'N/A')}")
         st.write(f"IPinfo - ISP: {ipinfo_data.get('org', 'N/A')}")
     else:
         st.write("IPinfo - Errore nella geolocalizzazione.")
 
     # AbuseIPDB
-    abuseipdb_key = "c87a09395a0d25e07c20c4c953624bf5efa17d21b6cbad921d1bc0d9e79a7f15894aafb4cd4dd726"  # Sostituisci
-    abuseipdb_url = f"https://api.abuseipdb.com/api/v2/check?ipAddress={ip}"
-    abuseipdb_headers = {"Key": abuseipdb_key, "Accept": "application/json"}
-    abuseipdb_response = requests.get(abuseipdb_url, headers=abuseipdb_headers)
-    if abuseipdb_response.status_code == 200:
-        abuseipdb_data = abuseipdb_response.json()['data']
+    abuseipdb_data = check_abuseipdb(ip)
+    if abuseipdb_data:
         st.write(f"AbuseIPDB - Segnalazioni: {abuseipdb_data['totalReports']}")
         if abuseipdb_data['isWhitelisted']:
             st.success("AbuseIPDB - IP sicuro.")
