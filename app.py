@@ -12,13 +12,22 @@ from sklearn.ensemble import RandomForestClassifier
 
 # Funzione per scaricare il file da Google Drive
 def download_file(url, dest):
-    headers = {'User-Agent': 'Mozilla/5.0'}  # Simula un browser
-    r = requests.get(url, headers=headers, stream=True)
-    r.raise_for_status()  # Solleva un errore se il download fallisce
+    session = requests.Session()
+    headers = {'User-Agent': 'Mozilla/5.0'}
+    response = session.get(url, headers=headers, stream=True)
+    
+    # Gestisci il token di conferma se presente
+    if 'confirm' in response.text:
+        token = response.text.split('confirm=')[1].split('&')[0]
+        url = f"{url}&confirm={token}"
+        response = session.get(url, headers=headers, stream=True)
+    
+    response.raise_for_status()
     with open(dest, 'wb') as f:
-        for chunk in r.iter_content(chunk_size=8192):
+        for chunk in response.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
+    
     # Verifica dimensione e contenuto
     file_size = os.path.getsize(dest)
     st.write(f"Dimensione file scaricato: {file_size} byte")
@@ -31,7 +40,6 @@ def download_file(url, dest):
 @st.cache_resource
 def initialize_guardian():
     dataset_path = 'creditcard.csv'
-    # Link Google Drive corretto
     drive_url = 'https://drive.google.com/uc?export=download&id=17KecvEIHHc5QfUhQkC9NJv9A9Y1a-K-A'
     
     if not os.path.exists(dataset_path):
