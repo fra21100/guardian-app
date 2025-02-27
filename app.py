@@ -10,25 +10,15 @@ import os
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-# Funzione per scaricare il file da Google Drive
+# Funzione per scaricare il file da GitHub Releases
 def download_file(url, dest):
-    session = requests.Session()
     headers = {'User-Agent': 'Mozilla/5.0'}
-    response = session.get(url, headers=headers, stream=True)
-    
-    # Gestisci il token di conferma se presente
-    if 'confirm' in response.text:
-        token = response.text.split('confirm=')[1].split('&')[0]
-        url = f"{url}&confirm={token}"
-        response = session.get(url, headers=headers, stream=True)
-    
-    response.raise_for_status()
+    r = requests.get(url, headers=headers, stream=True)
+    r.raise_for_status()
     with open(dest, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=8192):
+        for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
-    
-    # Verifica dimensione e contenuto
     file_size = os.path.getsize(dest)
     st.write(f"Dimensione file scaricato: {file_size} byte")
     with open(dest, 'rb') as f:
@@ -40,18 +30,17 @@ def download_file(url, dest):
 @st.cache_resource
 def initialize_guardian():
     dataset_path = 'creditcard.csv'
-    drive_url = 'https://drive.google.com/uc?export=download&id=17KecvEIHHc5QfUhQkC9NJv9A9Y1a-K-A'
+    github_url = 'https://github.com/fra21100/guardian-app/releases/download/v1.0.0/creditcard.csv'
     
     if not os.path.exists(dataset_path):
-        st.write("Scaricamento del dataset da Google Drive in corso...")
+        st.write("Scaricamento del dataset da GitHub Releases in corso...")
         try:
-            download_file(drive_url, dataset_path)
+            download_file(github_url, dataset_path)
             st.write("Download completato!")
         except Exception as e:
             st.error(f"Errore nel download: {str(e)}")
             raise
     
-    # Verifica il file
     with open(dataset_path, 'rb') as f:
         first_line = f.readline().decode('utf-8', errors='ignore')
         st.write(f"Anteprima file: {first_line[:50]}")
