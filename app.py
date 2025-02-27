@@ -10,30 +10,34 @@ import os
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
 
-# Funzione per scaricare il file da Dropbox
+# Funzione per scaricare il file da Google Drive
 def download_file(url, dest):
-    r = requests.get(url, stream=True)
+    headers = {'User-Agent': 'Mozilla/5.0'}  # Simula un browser
+    r = requests.get(url, headers=headers, stream=True)
     r.raise_for_status()  # Solleva un errore se il download fallisce
     with open(dest, 'wb') as f:
         for chunk in r.iter_content(chunk_size=8192):
             if chunk:
                 f.write(chunk)
-    # Verifica il contenuto
+    # Verifica dimensione e contenuto
+    file_size = os.path.getsize(dest)
+    st.write(f"Dimensione file scaricato: {file_size} byte")
     with open(dest, 'rb') as f:
         first_bytes = f.read(100)
         if first_bytes.startswith(b'<!DOCTYPE html'):
             raise ValueError("Il file scaricato è una pagina HTML, non un CSV.")
+        st.write(f"Primi 100 byte: {first_bytes[:50].decode('utf-8', errors='ignore')}")
 
 @st.cache_resource
 def initialize_guardian():
     dataset_path = 'creditcard.csv'
-    # Nuovo link Dropbox corretto
-    dropbox_url = 'https://www.dropbox.com/s/lqe48d88uz76s3y30xfsx/creditcard.csv?dl=1'
+    # Link Google Drive corretto
+    drive_url = 'https://drive.google.com/uc?export=download&id=17KecvEIHHc5QfUhQkC9NJv9A9Y1a-K-A'
     
     if not os.path.exists(dataset_path):
-        st.write("Scaricamento del dataset da Dropbox in corso...")
+        st.write("Scaricamento del dataset da Google Drive in corso...")
         try:
-            download_file(dropbox_url, dataset_path)
+            download_file(drive_url, dataset_path)
             st.write("Download completato!")
         except Exception as e:
             st.error(f"Errore nel download: {str(e)}")
@@ -42,9 +46,14 @@ def initialize_guardian():
     # Verifica il file
     with open(dataset_path, 'rb') as f:
         first_line = f.readline().decode('utf-8', errors='ignore')
-        st.write(f"Anteprima file: {first_line[:50]}")  # Mostra i primi 50 caratteri
+        st.write(f"Anteprima file: {first_line[:50]}")
     
-    df_real = pd.read_csv(dataset_path)
+    try:
+        df_real = pd.read_csv(dataset_path)
+    except pd.errors.ParserError as e:
+        st.error(f"Errore nel parsing del CSV: {str(e)}")
+        raise
+    
     X = df_real.drop(columns=['Time', 'Class'])
     y = df_real['Class']
     X_test = X
@@ -67,7 +76,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS transazioni
               v16 REAL, v17 REAL, v18 REAL, v19 REAL, v20 REAL, v21 REAL, v22 REAL, 
               v23 REAL, v24 REAL, v25 REAL, v26 REAL, v27 REAL, v28 REAL, amount REAL, fraud_class INTEGER, ip TEXT)''')
 
-# Monitoraggio continuo
 def monitor_transactions(model, conn, df_real):
     idx = 0
     while True:
@@ -87,7 +95,6 @@ def monitor_transactions(model, conn, df_real):
 
 Thread(target=monitor_transactions, args=(model, conn, df_real), daemon=True).start()
 
-# Interfaccia Streamlit
 st.title("GUARDIAN - L’Agente Digitale H24")
 st.write("Un guardiano autonomo che protegge la tua banca, sempre.")
 st.write(f"Accuratezza attuale: {model.score(X_test, y_test)*100:.2f}%")
